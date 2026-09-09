@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>UIM Logbook</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <link rel="icon"             type="image/png" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="manifest"         href="manifest.json" />
+
+  <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');</script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --accent:     #b45309;
+      --accent-dim: rgba(180,83,9,0.12);
+      --danger:     #dc2626;
+      --font-sans:  'DM Sans', sans-serif;
+      --font-mono:  'DM Mono', monospace;
+      --font-disp:  'Playfair Display', serif;
+      --bg:       #f5f2eb;
+      --surface:  #ffffff;
+      --surface2: #f0ece2;
+      --text:     #1c1812;
+      --muted:    #9a8f7e;
+      --border:   #e3ddd0;
+      --row-alt:  #faf8f4;
+    }
+
+    html, body { background: var(--bg); color: var(--text); font-family: var(--font-sans); min-height: 100dvh; -webkit-font-smoothing: antialiased; }
+
+    /* ── TOPBAR ── */
+    #topbar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 0.65rem 1rem;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 100;
+    }
+    #hamburger { background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; padding: 4px 6px; border-radius: 6px; }
+    #brand { display: flex; align-items: baseline; gap: 5px; }
+    #brand-gnoke { font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.14em; color: var(--accent); text-transform: uppercase; }
+    #brand-app   { font-family: var(--font-disp); font-size: 1.1rem; font-weight: 700; color: var(--text); }
+  #brand-logo  { height: 28px; width: auto; display: block; }
+    .topbar-spacer { flex: 1; }
+    #status-chip { font-family: var(--font-mono); font-size: 0.6rem; background: var(--accent-dim); color: var(--accent); padding: 3px 8px; border-radius: 20px; display: none; }
+    #status-chip.show { display: inline-block; }
+
+    /* ── PAGES ── */
+    .page { display: none; max-width: 860px; margin: 0 auto; padding: 1.25rem; }
+    .page.active { display: block; }
+
+    /* ── PAGE HEADER ── */
+    .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 1.25rem; flex-wrap: wrap; }
+    .page-header h1 { font-family: var(--font-disp); font-size: 1.5rem; font-weight: 700; color: var(--text); }
+    .page-header .sub { font-size: 0.78rem; color: var(--muted); margin-top: 2px; font-family: var(--font-mono); }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    /* ── BUTTONS ── */
+    .btn { border-radius: 8px; font-family: var(--font-sans); font-size: 0.82rem; font-weight: 500; cursor: pointer; padding: 0.55rem 1rem; border: none; transition: opacity 0.15s; }
+    .btn:active { opacity: 0.8; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-ghost   { background: none; border: 1px solid var(--border); color: var(--text); }
+    .btn-sm      { padding: 0.35rem 0.75rem; font-size: 0.75rem; }
+
+    /* ── PROJECTS LIST ── */
+    #project-list { display: flex; flex-direction: column; gap: 8px; }
+    .project-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem; display: flex; align-items: center; gap: 6px; cursor: pointer; transition: border-color 0.15s; }
+    .project-card:hover { border-color: var(--accent); }
+    .project-card-main { flex: 1; }
+    .project-name { font-size: 0.95rem; font-weight: 500; color: var(--text); margin-bottom: 2px; }
+    .project-meta { font-size: 0.72rem; color: var(--muted); font-family: var(--font-mono); }
+    .chevron { font-size: 1.2rem; color: var(--muted); }
+    .card-edit-btn { background: none; border: none; font-size: 1.05rem; line-height: 1; padding: 6px 8px; color: var(--muted); cursor: pointer; border-radius: 6px; }
+    .card-edit-btn:hover { color: var(--text); background: var(--surface2); }
+    .empty-state { text-align: center; padding: 3rem 1rem; color: var(--muted); font-size: 0.88rem; font-family: var(--font-mono); }
+
+    /* ── WEEK PAGE ── */
+    .week-header { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem; margin-bottom: 1rem; }
+    .week-nav { display: flex; align-items: center; gap: 8px; margin-bottom: 0.85rem; flex-wrap: wrap; }
+    .week-nav select { flex: 1; min-width: 160px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-family: var(--font-mono); font-size: 0.75rem; color: var(--text); outline: none; cursor: pointer; }
+    .meta-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .meta-field label { display: block; font-size: 0.65rem; font-family: var(--font-mono); letter-spacing: 0.05em; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; }
+    .meta-field input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.75rem; font-size: 0.82rem; color: var(--text); outline: none; font-family: var(--font-sans); }
+    .meta-field input:focus { border-color: var(--accent); }
+
+    /* ── TABLE ── */
+    .table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 1rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    thead th { background: var(--surface2); padding: 9px 10px; text-align: left; font-size: 0.65rem; font-weight: 500; font-family: var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
+    tbody tr:nth-child(even) td { background: var(--row-alt); }
+    tbody tr:last-child td    { border-bottom: none; }
+    td { padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .td-sn      { width: 36px; text-align: center; color: var(--muted); font-family: var(--font-mono); font-size: 0.72rem; padding-top: 10px; }
+    .td-day     { width: 90px; }
+    .td-task    { min-width: 180px; }
+    .td-partners{ width: 120px; }
+    .td-status  { width: 108px; padding-top: 8px; }
+    .status-select { width: 100%; font-family: var(--font-mono); font-size: 0.72rem; padding: 4px 4px; border-radius: 4px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+    .status-select[data-status="done"]    { color: var(--accent); border-color: var(--accent); }
+    .status-select[data-status="progress"]{ color: #b8860b; }
+    .status-done-at { display: block; font-size: 0.62rem; color: var(--muted); font-family: var(--font-mono); margin-top: 3px; white-space: nowrap; }
+    .td-remarks { min-width: 140px; }
+    .td-del     { width: 32px; text-align: center; padding-top: 8px; }
+
+    .cell-input { width: 100%; background: transparent; border: none; font-family: var(--font-sans); font-size: 0.82rem; color: var(--text); outline: none; padding: 2px 0; resize: none; }
+    .cell-input:focus { background: var(--accent-dim); border-radius: 4px; padding: 2px 4px; }
+    .cell-ta     { min-height: 38px; line-height: 1.4; }
+
+    .done-check { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+    .del-row-btn { background: none; border: none; color: var(--muted); font-size: 16px; cursor: pointer; padding: 2px 4px; border-radius: 4px; line-height: 1; }
+    .del-row-btn:hover { color: var(--danger); }
+
+    /* ── CHECKLIST ── */
+    .checklist-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem; margin-bottom: 1rem; }
+    .checklist-title { font-size: 0.68rem; font-family: var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.75rem; }
+    #checklist-wrap { display: flex; flex-wrap: wrap; gap: 8px; }
+    .check-item { display: flex; align-items: center; gap: 7px; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 5px 12px; cursor: pointer; font-size: 0.78rem; color: var(--text); }
+    .check-item input { width: 14px; height: 14px; accent-color: var(--accent); cursor: pointer; }
+
+    /* ── SETTINGS ── */
+    .settings-section { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem; margin-bottom: 1rem; }
+    .settings-section h2 { font-size: 0.82rem; font-weight: 500; color: var(--text); margin-bottom: 0.75rem; }
+    .settings-check-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; }
+    .settings-check-row:last-child { border-bottom: none; }
+    .settings-check-label { color: var(--text); }
+    .settings-del-btn { background: none; border: none; color: var(--muted); font-size: 0.75rem; cursor: pointer; font-family: var(--font-mono); }
+    .settings-del-btn:hover { color: var(--danger); }
+    .add-check-row { display: flex; gap: 8px; margin-top: 0.75rem; }
+    .add-check-row input { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.75rem; font-size: 0.82rem; color: var(--text); outline: none; }
+    .add-check-row input:focus { border-color: var(--accent); }
+
+    /* ── SETTINGS DATA ROWS ── */
+    .settings-data-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0.85rem 0; border-bottom: 1px solid var(--border); }
+    .settings-data-row:last-child { border-bottom: none; }
+    .settings-data-label { font-size: 0.85rem; font-weight: 500; color: var(--text); margin-bottom: 2px; }
+    .settings-data-hint  { font-size: 0.72rem; color: var(--muted); font-family: var(--font-mono); }
+
+    /* ── ABOUT PAGE ── */
+    .card-grid  { display: flex; flex-direction: column; gap: 12px; }
+    .form-card  { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem; }
+    .card-title { font-size: 0.85rem; font-weight: 500; color: var(--text); margin-bottom: 0.6rem; }
+    .hint       { font-size: 0.8rem; color: var(--muted); line-height: 1.6; }
+    .about-table { width: 100%; border-collapse: collapse; }
+    .about-table td { padding: 5px 0; font-size: 0.75rem; font-family: var(--font-mono); border-bottom: 1px solid var(--border); }
+    .about-table td:first-child { color: var(--muted); width: 45%; }
+    .about-table td:last-child  { color: var(--text); text-align: right; }
+    .about-table tr:last-child td { border-bottom: none; }
+
+    /* ── MODAL ── */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 300; align-items: center; justify-content: center; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; width: 90%; max-width: 400px; }
+    .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+    .modal-head h3 { font-size: 1rem; font-weight: 500; }
+    .modal-close { background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; }
+    .modal-body { display: flex; flex-direction: column; gap: 12px; margin-bottom: 1.25rem; }
+    .field label { display: block; font-size: 0.68rem; font-family: var(--font-mono); letter-spacing: 0.05em; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; }
+    .field input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; padding: 0.6rem 0.8rem; font-size: 0.88rem; color: var(--text); outline: none; }
+    .field input:focus { border-color: var(--accent); }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+    /* ── TOAST ── */
+    #toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%) translateY(10px); background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 20px; padding: 8px 18px; font-size: 0.78rem; font-family: var(--font-mono); opacity: 0; transition: all 0.2s; pointer-events: none; z-index: 999; white-space: nowrap; }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #toast.ok  { border-color: var(--accent); color: var(--accent); }
+    #toast.err { border-color: var(--danger); color: var(--danger); }
+
+    /* ── DRAWER ── */
+    #drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; display: none; }
+    #drawer-overlay.open { display: block; }
+    #drawer { position: fixed; top: 0; left: -280px; bottom: 0; width: 280px; background: var(--surface); border-right: 1px solid var(--border); z-index: 201; transition: left 0.25s ease; }
+    #drawer.open { left: 0; }
+    #drawer-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
+    #drawer-app-name { font-family: var(--font-disp); font-size: 1rem; color: var(--text); }
+    #drawer-close { background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; }
+    .drawer-section { font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 1rem 1.25rem 0.4rem; }
+    .drawer-btn { display: block; width: 100%; background: none; border: none; text-align: left; padding: 0.65rem 1.25rem; font-size: 0.88rem; color: var(--text); cursor: pointer; }
+    .drawer-btn:hover { background: var(--surface2); }
+  </style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div id="topbar">
+  <button id="hamburger" onclick="Drawer.open()">&#9776;</button>
+  <div id="brand">
+    <span id="brand-app">Logbook</span>
+  </div>
+  <div class="topbar-spacer"></div>
+  <img id="brand-logo" src="logo.png" alt="Uyo InfoMedia">
+  <span id="status-chip">saved</span>
+</div>
+
+<main>
+
+  <!-- ══ PROJECTS PAGE ══ -->
+  <section id="projects-page" class="page active">
+    <div class="page-header">
+      <div>
+        <h1>Projects</h1>
+        <div class="sub">Select a project to log this week's work</div>
+      </div>
+      <button class="btn btn-primary" id="btn-new-project">+ New project</button>
+    </div>
+    <div id="project-list"></div>
+  </section>
+
+  <!-- ══ WEEK PAGE ══ -->
+  <section id="week-page" class="page">
+    <div class="page-header">
+      <div>
+        <h1 id="week-project-name"></h1>
+        <div class="sub" id="week-label"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-sm" id="btn-print">Export PDF</button>
+      </div>
+    </div>
+
+    <!-- Week nav + header fields -->
+    <div class="week-header">
+      <div class="week-nav">
+        <button class="btn btn-ghost btn-sm" id="btn-prev-week">‹ Prev</button>
+        <select id="week-select"></select>
+        <button class="btn btn-ghost btn-sm" id="btn-next-week">Next ›</button>
+      </div>
+      <div class="meta-row">
+        <div class="meta-field">
+          <label>Prepared by</label>
+          <input type="text" id="inp-prepared-by" placeholder="Your name" maxlength="80" />
+        </div>
+        <div class="meta-field">
+          <label>Submitted to</label>
+          <input type="text" id="inp-submitted-to-w" placeholder="Supervisor / recipient" maxlength="80" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Log table -->
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>S/N</th>
+            <th>Day</th>
+            <th>Task / Activity</th>
+            <th>Partners</th>
+            <th>Status</th>
+            <th>Remarks</th>
+          </tr>
+        </thead>
+        <tbody id="log-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ══ SETTINGS PAGE ══ -->
+  <section id="settings-page" class="page">
+    <div class="page-header">
+      <div>
+        <h1>Settings</h1>
+        <div class="sub">Data and updates</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="btn-settings-back">← Back</button>
+    </div>
+
+    <div class="settings-section">
+      <h2>Data</h2>
+      <div class="settings-data-row">
+        <div>
+          <div class="settings-data-label">Backup</div>
+          <div class="settings-data-hint">Download all projects and logs as a JSON file.</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="btn-backup">Backup</button>
+      </div>
+      <div class="settings-data-row">
+        <div>
+          <div class="settings-data-label">Restore</div>
+          <div class="settings-data-hint">Load a previously backed up JSON file.</div>
+        </div>
+        <label class="btn btn-ghost btn-sm" style="cursor:pointer;">
+          Restore
+          <input type="file" id="inp-restore" accept=".json" style="display:none;" />
+        </label>
+      </div>
+      <div class="settings-data-row">
+        <div>
+          <div class="settings-data-label" style="color:var(--danger);">Reset all data</div>
+          <div class="settings-data-hint">Permanently delete all projects, logs and settings.</div>
+        </div>
+        <button class="btn btn-sm" id="btn-reset-all" style="background:none;border:1px solid var(--danger);color:var(--danger);">Reset</button>
+      </div>
+    </div>
+
+    <div class="settings-section" id="update-card">
+      <h2>Updates</h2>
+      <p class="hint" style="font-size:0.78rem;color:var(--muted);margin-bottom:0.75rem;">Works offline first, always. Tap this when you're online to pull the latest saved files into the offline cache.</p>
+      <button class="btn btn-ghost btn-sm" id="btn-check-update">🔄 Check for updates</button>
+      <div id="update-result" style="margin-top:10px;"></div>
+    </div>
+  </section>
+
+  <!-- ══ ABOUT PAGE ══ -->
+  <section id="about-page" class="page">
+    <div class="page-header">
+      <div>
+        <h1>About</h1>
+        <div class="sub">UIM Logbook · v1.1</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="btn-about-back">← Back</button>
+    </div>
+
+    <div class="card-grid">
+      <div class="form-card">
+        <div class="card-title">📋 UIM Logbook</div>
+        <p class="hint">Log daily tasks, track progress and export clean weekly reports for Uyoinfomedia. Works completely offline. Your data never leaves the device.</p>
+      </div>
+
+      <div class="form-card">
+        <div class="card-title">⚙️ Under The Hood</div>
+        <table class="about-table">
+          <tbody>
+            <tr><td>Database</td><td>IndexedDB</td></tr>
+            <tr><td>Persistence</td><td>Browser storage — no server</td></tr>
+            <tr><td>Network</td><td>None required</td></tr>
+            <tr><td>Stack</td><td>HTML · CSS · Vanilla JS</td></tr>
+            <tr><td>PWA</td><td>Service Worker + manifest</td></tr>
+            <tr><td>Version</td><td>v1.1</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="form-card">
+        <div class="card-title">👤 Built for</div>
+        <p class="hint"><strong>Uyoinfomedia</strong> — internal reporting tool.</p>
+      </div>
+
+      <div class="form-card">
+        <div class="card-title">📜 License</div>
+        <p class="hint">Free and open source under <strong>GNU General Public License v3.0</strong>. Use it, modify it, share it — but keep it open. Commercial use requires explicit permission from the author.</p>
+        <p class="hint" style="margin-top:10px;font-family:var(--font-mono);font-size:0.65rem;color:var(--muted);">© 2026 Uyoinfomedia · powered by Gnokestation</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- PROJECT MODAL -->
+<div class="modal-overlay" id="project-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modal-project-title">New project</h3>
+      <button class="modal-close" onclick="UI.closeModal('project-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="inp-project-id" />
+      <div class="field">
+        <label>Project name</label>
+        <input type="text" id="inp-project-name" placeholder="e.g. Website Redesign Q3" maxlength="80" />
+      </div>
+      <div class="field">
+        <label>Submitted to (default)</label>
+        <input type="text" id="inp-submitted-to" placeholder="e.g. Project Manager" maxlength="80" />
+      </div>
+    </div>
+    <div class="modal-actions" style="justify-content: space-between;">
+      <button class="btn btn-ghost" id="btn-delete-project" style="display:none; color:#c0392b; border-color:#c0392b;">Delete</button>
+      <div style="display:flex; gap:8px; margin-left:auto;">
+        <button class="btn btn-ghost" id="btn-cancel-project">Cancel</button>
+        <button class="btn btn-primary" id="btn-save-project">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- DRAWER -->
+<div id="drawer-overlay"></div>
+<nav id="drawer">
+  <div id="drawer-header">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <img src="logo.png" alt="Uyo InfoMedia" style="height:22px;width:auto;">
+      <span id="drawer-app-name">Logbook</span>
+    </div>
+    <button id="drawer-close">✕</button>
+  </div>
+  <div class="drawer-section">Navigation</div>
+  <button class="drawer-btn" id="drawer-projects">📋 Projects</button>
+  <button class="drawer-btn" id="drawer-settings">⚙️ Settings</button>
+  <button class="drawer-btn" id="drawer-about">ℹ️ About</button>
+
+</nav>
+
+<!-- SCRIPTS -->
+<script src="js/state.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/db.js"></script>
+<script src="js/export.js"></script>
+<script src="js/sync.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
