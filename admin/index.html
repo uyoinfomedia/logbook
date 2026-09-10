@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>UIM Logbook — Dashboard</title>
+<link rel="icon" type="image/png" href="../icon-192.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f5f2eb; --text: #1c1812; --muted: #9a8f7e;
+    --accent: #b45309; --border: #e8e0d0; --surface: #ffffff;
+    --done: #3f7d54; --progress: #b45309; --pending: #9a8f7e;
+    --font-sans: 'DM Sans', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+    --font-display: 'Playfair Display', serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text); font-family: var(--font-sans);
+    min-height: 100vh; -webkit-font-smoothing: antialiased;
+  }
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 24px; border-bottom: 1px solid var(--border); background: var(--surface);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand img { height: 28px; }
+  .brand-name { font-family: var(--font-display); font-weight: 700; font-size: 1.2rem; }
+  .brand-tag { font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+
+  /* ---- passcode gate ---- */
+  #gate { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 68px); padding: 24px; }
+  .gate-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 36px 30px; width: 100%; max-width: 340px; text-align: center;
+  }
+  .gate-card h1 { font-family: var(--font-display); font-size: 1.4rem; margin-bottom: 8px; }
+  .gate-card p { color: var(--muted); font-size: 0.85rem; margin-bottom: 22px; }
+  .gate-card input {
+    width: 100%; padding: 13px 14px; border: 1px solid var(--border); border-radius: 8px;
+    font-family: var(--font-mono); font-size: 1rem; letter-spacing: 0.05em; text-align: center;
+    margin-bottom: 12px; background: var(--bg);
+  }
+  .gate-card button {
+    width: 100%; padding: 13px; background: var(--accent); color: #fff; border: none;
+    border-radius: 8px; font-weight: 600; font-size: 0.92rem; cursor: pointer;
+  }
+  .gate-card button:disabled { opacity: 0.6; cursor: default; }
+  .gate-error { color: #b3261e; font-size: 0.8rem; margin-top: 10px; min-height: 1em; }
+
+  /* ---- dashboard ---- */
+  #dashboard { display: none; padding: 20px 24px 60px; max-width: 1100px; margin: 0 auto; }
+  .filters {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px; margin-bottom: 18px;
+  }
+  @media (max-width: 800px) { .filters { grid-template-columns: repeat(2, 1fr); } }
+  .filters label {
+    display: block; font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 6px;
+  }
+  .filters select, .filters input {
+    width: 100%; padding: 9px 10px; border: 1px solid var(--border); border-radius: 7px;
+    font-family: var(--font-sans); font-size: 0.85rem; background: var(--bg); color: var(--text);
+  }
+
+  .summary { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+  .stat {
+    flex: 1; min-width: 110px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px;
+  }
+  .stat .num { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; }
+  .stat .label { font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+  thead th {
+    text-align: left; font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--muted); padding: 12px 14px; border-bottom: 1px solid var(--border);
+    background: var(--bg); white-space: nowrap;
+  }
+  tbody td { padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+  .badge {
+    display: inline-block; font-family: var(--font-mono); font-size: 0.65rem; padding: 3px 9px;
+    border-radius: 20px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;
+  }
+  .badge-done { background: color-mix(in srgb, var(--done) 15%, transparent); color: var(--done); }
+  .badge-progress { background: color-mix(in srgb, var(--progress) 15%, transparent); color: var(--progress); }
+  .badge-pending { background: color-mix(in srgb, var(--pending) 15%, transparent); color: var(--pending); }
+  .empty-state, .loading-state { padding: 40px 20px; text-align: center; color: var(--muted); font-size: 0.9rem; }
+  .toolbar { display: flex; justify-content: flex-end; margin-bottom: 12px; gap: 10px; }
+  .btn-refresh {
+    font-family: var(--font-mono); font-size: 0.72rem; padding: 8px 14px; border: 1px solid var(--border);
+    background: var(--surface); border-radius: 7px; cursor: pointer; color: var(--text);
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <img src="../logo.png" alt="Uyo InfoMedia" />
+    <div>
+      <div class="brand-name">Logbook Dashboard</div>
+      <div class="brand-tag">UIM · Admin View</div>
+    </div>
+  </div>
+</div>
+
+<div id="gate">
+  <div class="gate-card">
+    <h1>🔒 Enter Passcode</h1>
+    <p>This view shows every staff member's logged tasks across all projects.</p>
+    <input type="password" id="passcode-input" placeholder="Passcode" autocomplete="off" />
+    <button id="btn-unlock">Unlock</button>
+    <div class="gate-error" id="gate-error"></div>
+  </div>
+</div>
+
+<div id="dashboard">
+  <div class="filters">
+    <div>
+      <label>Staff</label>
+      <select id="f-staff"><option value="">All</option></select>
+    </div>
+    <div>
+      <label>Project</label>
+      <select id="f-project"><option value="">All</option></select>
+    </div>
+    <div>
+      <label>Status</label>
+      <select id="f-status">
+        <option value="">All</option>
+        <option value="done">Done</option>
+        <option value="progress">In Progress</option>
+        <option value="pending">Pending</option>
+      </select>
+    </div>
+    <div>
+      <label>From</label>
+      <input type="date" id="f-from" />
+    </div>
+    <div>
+      <label>To</label>
+      <input type="date" id="f-to" />
+    </div>
+  </div>
+
+  <div class="summary" id="summary"></div>
+
+  <div class="toolbar">
+    <button class="btn-refresh" id="btn-refresh">🔄 Refresh data</button>
+  </div>
+
+  <div class="table-wrap">
+    <div id="table-target"><div class="loading-state">Loading…</div></div>
+  </div>
+</div>
+
+<script>
+  // ---- SET THIS AFTER DEPLOYING Code.gs AS A WEB APP ----
+  const SYNC_URL = 'https://script.google.com/macros/s/AKfycbzrkY2L_tpSsLYCpi5zyk1X9XZxTTCIZA_nw9NcStcfSpTRxZKEXiXSLX4ll3FYcVA5lw/exec';
+  // --------------------------------------------------------
+
+  let allRows = [];
+  let passcode = sessionStorage.getItem('uim_dash_passcode') || '';
+
+  const gate = document.getElementById('gate');
+  const dashboard = document.getElementById('dashboard');
+  const gateError = document.getElementById('gate-error');
+
+  async function fetchRows(pc) {
+    const res = await fetch(`${SYNC_URL}?passcode=${encodeURIComponent(pc)}`);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Access denied');
+    return data.rows || [];
+  }
+
+  async function unlock(pc) {
+    gateError.textContent = '';
+    const btn = document.getElementById('btn-unlock');
+    btn.disabled = true; btn.textContent = 'Checking…';
+    try {
+      allRows = await fetchRows(pc);
+      sessionStorage.setItem('uim_dash_passcode', pc);
+      passcode = pc;
+      gate.style.display = 'none';
+      dashboard.style.display = 'block';
+      populateFilters();
+      render();
+    } catch (err) {
+      gateError.textContent = 'Wrong passcode or connection issue. Try again.';
+    } finally {
+      btn.disabled = false; btn.textContent = 'Unlock';
+    }
+  }
+
+  document.getElementById('btn-unlock').addEventListener('click', () => {
+    const pc = document.getElementById('passcode-input').value.trim();
+    if (pc) unlock(pc);
+  });
+  document.getElementById('passcode-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('btn-unlock').click();
+  });
+
+  document.getElementById('btn-refresh').addEventListener('click', async () => {
+    allRows = await fetchRows(passcode);
+    populateFilters();
+    render();
+  });
+
+  ['f-staff','f-project','f-status','f-from','f-to'].forEach(id => {
+    document.getElementById(id).addEventListener('change', render);
+  });
+
+  function populateFilters() {
+    const staffSel = document.getElementById('f-staff');
+    const projSel  = document.getElementById('f-project');
+    const staffVals = [...new Set(allRows.map(r => r.Staff).filter(Boolean))].sort();
+    const projVals  = [...new Set(allRows.map(r => r.Project).filter(Boolean))].sort();
+    staffSel.innerHTML = '<option value="">All</option>' + staffVals.map(s => `<option value="${s}">${s}</option>`).join('');
+    projSel.innerHTML  = '<option value="">All</option>' + projVals.map(p => `<option value="${p}">${p}</option>`).join('');
+  }
+
+  function badge(status) {
+    const map = { done: ['Done','badge-done'], progress: ['In Progress','badge-progress'], pending: ['Pending','badge-pending'] };
+    const [label, cls] = map[status] || ['—','badge-pending'];
+    return `<span class="badge ${cls}">${label}</span>`;
+  }
+
+  function render() {
+    const staff  = document.getElementById('f-staff').value;
+    const proj   = document.getElementById('f-project').value;
+    const status = document.getElementById('f-status').value;
+    const from   = document.getElementById('f-from').value;
+    const to     = document.getElementById('f-to').value;
+
+    const filtered = allRows.filter(r => {
+      if (staff && r.Staff !== staff) return false;
+      if (proj && r.Project !== proj) return false;
+      if (status && r.Status !== status) return false;
+      if (from && r.Date && r.Date < from) return false;
+      if (to && r.Date && r.Date > to) return false;
+      return true;
+    });
+
+    // summary
+    const total = filtered.length;
+    const done = filtered.filter(r => r.Status === 'done').length;
+    const progress = filtered.filter(r => r.Status === 'progress').length;
+    const pending = filtered.filter(r => r.Status === 'pending').length;
+    document.getElementById('summary').innerHTML = `
+      <div class="stat"><div class="num">${total}</div><div class="label">Total tasks</div></div>
+      <div class="stat"><div class="num">${done}</div><div class="label">Done</div></div>
+      <div class="stat"><div class="num">${progress}</div><div class="label">In progress</div></div>
+      <div class="stat"><div class="num">${pending}</div><div class="label">Pending</div></div>
+    `;
+
+    const target = document.getElementById('table-target');
+    if (!filtered.length) {
+      target.innerHTML = '<div class="empty-state">No tasks match these filters.</div>';
+      return;
+    }
+
+    const sorted = [...filtered].sort((a, b) => (b.Date || '').localeCompare(a.Date || ''));
+    target.innerHTML = `
+      <table>
+        <thead><tr>
+          <th>Date</th><th>Staff</th><th>Project</th><th>Task</th><th>Partners</th><th>Status</th><th>Remarks</th>
+        </tr></thead>
+        <tbody>
+          ${sorted.map(r => `
+            <tr>
+              <td>${r.Date || ''}</td>
+              <td>${r.Staff || ''}</td>
+              <td>${r.Project || ''}</td>
+              <td>${r.Task || ''}</td>
+              <td>${r.Partners || ''}</td>
+              <td>${badge(r.Status)}</td>
+              <td>${r.Remarks || ''}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  // Auto-unlock if we already have a passcode from this session
+  if (passcode) unlock(passcode);
+</script>
+
+</body>
+</html>
