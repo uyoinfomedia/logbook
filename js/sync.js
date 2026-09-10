@@ -9,8 +9,8 @@
 const Sync = (() => {
 
   // ---- SET THIS AFTER DEPLOYING Code.gs AS A WEB APP ----
-  const SYNC_URL     = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
-  const WRITE_SECRET = 'CHANGE_ME_WRITE_SECRET_ABC123'; // must match Code.gs exactly
+  const SYNC_URL     = 'https://script.google.com/macros/s/AKfycbzrkY2L_tpSsLYCpi5zyk1X9XZxTTCIZA_nw9NcStcfSpTRxZKEXiXSLX4ll3FYcVA5lw/exec';
+  const WRITE_SECRET = 'uim-staff-reports2026'; // must match Code.gs exactly
   // --------------------------------------------------------
 
   const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
